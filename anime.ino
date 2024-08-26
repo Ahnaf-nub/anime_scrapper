@@ -1,76 +1,55 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 
-// Replace with your network credentials
-const char* ssid = "Mahir";
-const char* password = "Ahnaf767";
-
-// API endpoint for currently airing anime (Jikan API)
-const char* apiEndpoint = "https://api.jikan.moe/v4/seasons/now";
+// WiFi credentials
+const char* ssid = "Mahir";       // Replace with your WiFi SSID
+const char* password = "Ahnaf2007"; // Replace with your WiFi password
+String url = "https://zoroxtv.to/updated"; // Zoro website URL
 
 void setup() {
-  Serial.begin(115200);
-  delay(1000);
+  Serial.begin(115200); // Start the Serial Monitor at a baud rate of 115200
+  WiFi.begin(ssid, password); // Connect to WiFi
 
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi");
+  // Wait for the connection to establish
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
   }
-  Serial.println();
-  Serial.println("Connected to Wi-Fi");
-
-  // Fetch and display currently airing anime episodes
-  fetchAnimeEpisodes();
+  
+  Serial.println("Connected to WiFi");
 }
 
 void loop() {
-  // Nothing to do here
-}
-
-void fetchAnimeEpisodes() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin(apiEndpoint);
-    int httpResponseCode = http.GET();
+    http.begin(url); // Initiate HTTP request to the URL
 
-    if (httpResponseCode > 0) {
-      String payload = http.getString();
-      Serial.println("HTTP Response Code: " + String(httpResponseCode));
-      
-      // Parse JSON payload
-      DynamicJsonDocument doc(4096);
-      DeserializationError error = deserializeJson(doc, payload);
+    int httpCode = http.GET(); // Send the request
+    if (httpCode > 0) {
+      String payload = http.getString(); // Get the response payload
+      Serial.println("Response received:");
+      // Serial.println(payload); // Uncomment to print the full HTML content
 
-      if (error) {
-        Serial.print("deserializeJson() failed: ");
-        Serial.println(error.c_str());
-        return;
+      // Simple parsing to extract anime names
+      // Assuming the anime names are in <h3 class="film-name"> tags
+      String startTag = "<h3 class=\"film-name\">";
+      String endTag = "</h3>";
+      int startIndex = 0;
+
+      while ((startIndex = payload.indexOf(startTag, startIndex)) != -1) {
+        startIndex += startTag.length();
+        int endIndex = payload.indexOf(endTag, startIndex);
+        if (endIndex != -1) {
+          String animeName = payload.substring(startIndex, endIndex);
+          Serial.println("Anime Name: " + animeName);
+        }
       }
-
-      // Display data in a human-readable format
-      JsonArray dataArray = doc["data"].as<JsonArray>();
-      Serial.println("Currently Airing Anime:");
-      Serial.println("======================");
-      for (JsonObject data : dataArray) {
-        const char* title = data["title"];
-        const char* next_episode_date = data["broadcast"]["next_episode"].as<const char*>();
-
-        Serial.print("Title: ");
-        Serial.println(title);
-        Serial.print("Next Episode Release Date: ");
-        Serial.println(next_episode_date ? next_episode_date : "N/A");
-        Serial.println("----------------------");
-      }
-      
     } else {
-      Serial.println("Error in HTTP request");
+      Serial.println("Error on HTTP request");
     }
-    http.end();
-  } else {
-    Serial.println("Not connected to Wi-Fi");
+    
+    http.end(); // Close the HTTP connection
   }
+
+  delay(60000); // Wait a minute before making the next request
 }
